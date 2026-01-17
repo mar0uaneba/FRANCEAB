@@ -1,27 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-// Utiliser le service role key pour lister les utilisateurs (admin uniquement)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
-
 export async function GET(request: NextRequest) {
   try {
     // Vérifier que le service role key est définie
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY || !process.env.NEXT_PUBLIC_SUPABASE_URL) {
       return NextResponse.json(
         { error: 'Service role key non configurée' },
         { status: 500 }
       )
     }
+
+    // Utiliser le service role key pour lister les utilisateurs (admin uniquement)
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    )
 
     // Lister tous les utilisateurs
     const { data, error } = await supabaseAdmin.auth.admin.listUsers()
