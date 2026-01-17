@@ -235,7 +235,7 @@ export async function getMovieVideos(movieId: number): Promise<TMDBVideo[]> {
     )
     
     // Trier : officiels en premier, puis par type (Trailer > Teaser > Clip > Featurette)
-    return allVideos.sort((a, b) => {
+    return allVideos.sort((a: TMDBVideo, b: TMDBVideo) => {
       // Prioriser les officiels
       if (a.official && !b.official) return -1
       if (!a.official && b.official) return 1
@@ -275,7 +275,7 @@ export async function getTVVideos(tvId: number): Promise<TMDBVideo[]> {
     )
     
     // Trier : officiels en premier, puis par type (Trailer > Teaser > Clip > Featurette)
-    return allVideos.sort((a, b) => {
+    return allVideos.sort((a: TMDBVideo, b: TMDBVideo) => {
       // Prioriser les officiels
       if (a.official && !b.official) return -1
       if (!a.official && b.official) return 1

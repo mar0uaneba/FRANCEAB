@@ -55,6 +55,9 @@ export default function AdminPage() {
   const [uploadingArticleImage, setUploadingArticleImage] = useState(false)
   const [articleImagePreview, setArticleImagePreview] = useState<string | null>(null)
   const [selectedArticleFile, setSelectedArticleFile] = useState<File | null>(null)
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [adminUsers, setAdminUsers] = useState<any[]>([])
+  const [newUser, setNewUser] = useState({ email: '', password: '' })
 
   useEffect(() => {
     checkAuth()
@@ -107,12 +110,13 @@ export default function AdminPage() {
     try {
       const supabase = createClient()
       
-      const [packsRes, testimonialsRes, prospectsRes, articlesRes, announcementRes] = await Promise.all([
+      const [packsRes, testimonialsRes, prospectsRes, articlesRes, announcementRes, usersRes] = await Promise.all([
         supabase.from('packs').select('*').order('display_order', { ascending: true, nullsFirst: false }),
         supabase.from('testimonials').select('*').order('created_at', { ascending: false }),
         supabase.from('prospects').select('*').order('created_at', { ascending: false }),
         supabase.from('blog_articles').select('*').order('created_at', { ascending: false }),
         supabase.from('site_settings').select('value').eq('key', 'urgency_bar_text').single(),
+        fetch('/api/admin/users').then(res => res.json()).catch(() => ({ success: false, users: [] })),
       ])
 
       if (packsRes.data) setPacks(packsRes.data)
@@ -120,6 +124,7 @@ export default function AdminPage() {
       if (prospectsRes.data) setProspects(prospectsRes.data)
       if (articlesRes.data) setArticles(articlesRes.data)
       if (announcementRes.data?.value) setAnnouncementText(announcementRes.data.value)
+      if (usersRes.success && usersRes.users) setAdminUsers(usersRes.users)
     } catch (error) {
       console.error('Error fetching data:', error)
     } finally {
@@ -155,6 +160,64 @@ export default function AdminPage() {
       alert(`Erreur lors de la sauvegarde: ${error.message || 'Erreur inconnue'}`)
     } finally {
       setLoadingAnnouncement(false)
+    }
+  }
+
+  const handleAddAdminUser = async () => {
+    if (!newUser.email || !newUser.password) {
+      alert('Veuillez remplir tous les champs')
+      return
+    }
+
+    if (newUser.password.length < 6) {
+      alert('Le mot de passe doit contenir au moins 6 caractères')
+      return
+    }
+
+    try {
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de la création du compte')
+      }
+
+      alert('Compte admin créé avec succès!')
+      setShowAddUser(false)
+      setNewUser({ email: '', password: '' })
+      fetchData() // Recharger la liste des utilisateurs
+    } catch (error: any) {
+      console.error('Error adding admin user:', error)
+      alert(error.message || 'Erreur lors de la création du compte')
+    }
+  }
+
+  const handleDeleteAdminUser = async (userId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce compte admin ?')) return
+
+    try {
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de la suppression')
+      }
+
+      alert('Compte admin supprimé avec succès!')
+      setAdminUsers(adminUsers.filter((u) => u.id !== userId))
+    } catch (error: any) {
+      console.error('Error deleting admin user:', error)
+      alert(error.message || 'Erreur lors de la suppression')
     }
   }
 
