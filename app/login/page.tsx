@@ -71,7 +71,7 @@ export default function LoginPage() {
               <Lock className="w-8 h-8 text-dark-bg" />
             </motion.div>
             <h1 className="text-3xl font-bold text-white mb-2">Connexion Admin</h1>
-            <p className="text-white/60">Accédez au panneau d'administration</p>
+            <p className="text-white/60">Accédez au panneau d&apos;administration</p>
           </div>
 
           {/* Error Message */}

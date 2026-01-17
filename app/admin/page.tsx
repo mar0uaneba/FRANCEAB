@@ -570,7 +570,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-dark-bg flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-accent-gold border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="text-white/60">Vérification de l'authentification...</div>
+          <div className="text-white/60">Vérification de l&apos;authentification...</div>
         </div>
       </div>
     )
@@ -1566,9 +1566,9 @@ export default function AdminPage() {
         {activeTab === 'announcement' && (
           <div>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white mb-2">Gestion de l'Annonce</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Gestion de l&apos;Annonce</h2>
               <p className="text-white/60 text-sm">
-                Modifiez le texte affiché dans la barre d'annonce en haut de la page
+                Modifiez le texte affiché dans la barre d&apos;annonce en haut de la page
               </p>
             </div>
 
@@ -1576,7 +1576,7 @@ export default function AdminPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-white/80 mb-2 text-sm font-medium">
-                    Texte de l'annonce *
+                    Texte de l&apos;annonce *
                   </label>
                   <textarea
                     value={announcementText}
@@ -1586,7 +1586,7 @@ export default function AdminPage() {
                     rows={3}
                   />
                   <p className="text-white/60 text-xs mt-2">
-                    Le texte sera affiché dans la barre d'annonce en haut de toutes les pages. Utilisez <strong className="text-accent-gold">OFFRE LIMITÉE</strong> pour mettre en avant.
+                    Le texte sera affiché dans la barre d&apos;annonce en haut de toutes les pages. Utilisez <strong className="text-accent-gold">OFFRE LIMITÉE</strong> pour mettre en avant.
                   </p>
                 </div>
 
@@ -1615,7 +1615,7 @@ export default function AdminPage() {
                         Enregistrement...
                       </>
                     ) : (
-                      'Enregistrer l\'annonce'
+                      'Enregistrer l&apos;annonce'
                     )}
                   </button>
                 </div>
