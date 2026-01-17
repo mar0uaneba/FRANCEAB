@@ -362,6 +362,14 @@ export default function AdminPage() {
     const packOrder = pack.display_order ?? currentIndex
     const targetOrder = targetPack.display_order ?? newIndex
 
+    // Mettre à jour l'état local immédiatement pour un feedback visuel
+    const newPacks = [...packs]
+    ;[newPacks[currentIndex], newPacks[newIndex]] = [newPacks[newIndex], newPacks[currentIndex]]
+    // Mettre à jour aussi les display_order dans l'état local
+    newPacks[currentIndex].display_order = targetOrder
+    newPacks[newIndex].display_order = packOrder
+    setPacks(newPacks)
+
     try {
       const supabase = createClient()
       
@@ -386,20 +394,26 @@ export default function AdminPage() {
         .select('*')
         .order('display_order', { ascending: true, nullsFirst: false })
 
-      if (fetchError) throw fetchError
+      if (fetchError) {
+        console.error('Error fetching packs after move:', fetchError)
+        // Ne pas jeter l'erreur, garder l'état local mis à jour
+        alert('Ordre mis à jour localement. Vérifiez la connexion à la base de données.')
+        return
+      }
 
-      if (updatedPacks) {
+      // Seulement mettre à jour si on a reçu des données valides
+      if (updatedPacks && updatedPacks.length > 0) {
         setPacks(updatedPacks)
         alert('Ordre des packs sauvegardé avec succès!')
       } else {
-        // Fallback : mettre à jour l'état local si le rechargement échoue
-        const newPacks = [...packs]
-        ;[newPacks[currentIndex], newPacks[newIndex]] = [newPacks[newIndex], newPacks[currentIndex]]
-        setPacks(newPacks)
+        // Si aucun pack n'est retourné, garder l'état local
+        console.warn('Aucun pack retourné après le déplacement, conservation de l\'état local')
+        alert('Ordre mis à jour localement. Vérifiez la connexion à la base de données.')
       }
     } catch (error) {
       console.error('Error moving pack:', error)
-      alert('Erreur lors du déplacement du pack')
+      // En cas d'erreur, garder l'état local mis à jour
+      alert('Erreur lors de la sauvegarde. L\'ordre a été mis à jour localement mais pourrait ne pas être sauvegardé.')
     }
   }
 
