@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Pack, Testimonial, Prospect, BlogArticle } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, Edit, Upload, X, ChevronUp, ChevronDown, LogOut, Flame, Download, FileText, FileSpreadsheet } from 'lucide-react'
+import { Plus, Trash2, Edit, Upload, X, LogOut, Flame, Download, FileText, FileSpreadsheet } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function AdminPage() {
@@ -348,72 +348,61 @@ export default function AdminPage() {
     }
   }
 
-  const handleMovePack = async (packId: string, direction: 'up' | 'down') => {
-    const currentIndex = packs.findIndex((p) => p.id === packId)
-    if (currentIndex === -1) return
+  const handleUpdatePackOrder = async (packId: string, newOrder: number) => {
+    // Valider le numéro d'ordre
+    if (newOrder < 1 || newOrder > packs.length) {
+      alert(`Le numéro d'ordre doit être entre 1 et ${packs.length}`)
+      return
+    }
 
-    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    if (newIndex < 0 || newIndex >= packs.length) return
+    const packIndex = packs.findIndex((p) => p.id === packId)
+    if (packIndex === -1) return
 
-    const pack = packs[currentIndex]
-    const targetPack = packs[newIndex]
+    const pack = packs[packIndex]
+    const currentOrder = pack.display_order ?? packIndex + 1
+    const targetOrder = newOrder
 
-    // Échanger les display_order
-    const packOrder = pack.display_order ?? currentIndex
-    const targetOrder = targetPack.display_order ?? newIndex
-
-    // Mettre à jour l'état local immédiatement pour un feedback visuel
-    const newPacks = [...packs]
-    ;[newPacks[currentIndex], newPacks[newIndex]] = [newPacks[newIndex], newPacks[currentIndex]]
-    // Mettre à jour aussi les display_order dans l'état local
-    newPacks[currentIndex].display_order = targetOrder
-    newPacks[newIndex].display_order = packOrder
-    setPacks(newPacks)
+    // Si c'est le même ordre, ne rien faire
+    if (currentOrder === targetOrder) return
 
     try {
       const supabase = createClient()
       
-      // Mettre à jour les deux packs en même temps
-      const [update1, update2] = await Promise.all([
-        supabase
-          .from('packs')
-          .update({ display_order: targetOrder })
-          .eq('id', pack.id),
-        supabase
-          .from('packs')
-          .update({ display_order: packOrder })
-          .eq('id', targetPack.id),
-      ])
+      // Mettre à jour le display_order du pack
+      const { error: updateError } = await supabase
+        .from('packs')
+        .update({ display_order: targetOrder })
+        .eq('id', packId)
 
-      if (update1.error) throw update1.error
-      if (update2.error) throw update2.error
+      if (updateError) throw updateError
 
-      // Recharger les packs depuis la base pour s'assurer que l'ordre est bien sauvegardé
+      // Recharger tous les packs depuis la base pour avoir l'ordre correct
       const { data: updatedPacks, error: fetchError } = await supabase
         .from('packs')
         .select('*')
         .order('display_order', { ascending: true, nullsFirst: false })
 
-      if (fetchError) {
-        console.error('Error fetching packs after move:', fetchError)
-        // Ne pas jeter l'erreur, garder l'état local mis à jour
-        alert('Ordre mis à jour localement. Vérifiez la connexion à la base de données.')
-        return
-      }
+      if (fetchError) throw fetchError
 
-      // Seulement mettre à jour si on a reçu des données valides
       if (updatedPacks && updatedPacks.length > 0) {
         setPacks(updatedPacks)
-        alert('Ordre des packs sauvegardé avec succès!')
+        alert('Ordre du pack mis à jour avec succès!')
       } else {
-        // Si aucun pack n'est retourné, garder l'état local
-        console.warn('Aucun pack retourné après le déplacement, conservation de l\'état local')
+        // Fallback : mettre à jour localement
+        const updatedPacksLocal = packs.map((p) =>
+          p.id === packId ? { ...p, display_order: targetOrder } : p
+        )
+        updatedPacksLocal.sort((a, b) => {
+          const orderA = a.display_order ?? 999
+          const orderB = b.display_order ?? 999
+          return orderA - orderB
+        })
+        setPacks(updatedPacksLocal)
         alert('Ordre mis à jour localement. Vérifiez la connexion à la base de données.')
       }
     } catch (error) {
-      console.error('Error moving pack:', error)
-      // En cas d'erreur, garder l'état local mis à jour
-      alert('Erreur lors de la sauvegarde. L\'ordre a été mis à jour localement mais pourrait ne pas être sauvegardé.')
+      console.error('Error updating pack order:', error)
+      alert('Erreur lors de la mise à jour de l\'ordre')
     }
   }
 
@@ -863,32 +852,30 @@ export default function AdminPage() {
                   key={pack.id}
                   className="bg-dark-card border border-dark-border rounded-xl p-6 flex items-center gap-4"
                 >
-                  {/* Boutons de réorganisation */}
-                  <div className="flex flex-col gap-2">
-                    <button
-                      onClick={() => handleMovePack(pack.id, 'up')}
-                      disabled={index === 0}
-                      className={`p-2 rounded-lg transition-colors ${
-                        index === 0
-                          ? 'bg-dark-surface/50 text-white/30 cursor-not-allowed'
-                          : 'bg-dark-surface border border-dark-border text-white hover:border-accent-gold hover:text-accent-gold'
-                      }`}
-                      title="Déplacer vers le haut"
-                    >
-                      <ChevronUp className="w-5 h-5" />
-                    </button>
-                    <button
-                      onClick={() => handleMovePack(pack.id, 'down')}
-                      disabled={index === packs.length - 1}
-                      className={`p-2 rounded-lg transition-colors ${
-                        index === packs.length - 1
-                          ? 'bg-dark-surface/50 text-white/30 cursor-not-allowed'
-                          : 'bg-dark-surface border border-dark-border text-white hover:border-accent-gold hover:text-accent-gold'
-                      }`}
-                      title="Déplacer vers le bas"
-                    >
-                      <ChevronDown className="w-5 h-5" />
-                    </button>
+                  {/* Champ de saisie pour l'ordre */}
+                  <div className="flex flex-col items-center gap-2 min-w-[80px]">
+                    <label className="text-white/60 text-xs font-medium">Ordre</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={packs.length}
+                      value={pack.display_order ?? index + 1}
+                      onChange={(e) => {
+                        const newOrder = parseInt(e.target.value)
+                        if (!isNaN(newOrder) && newOrder >= 1 && newOrder <= packs.length) {
+                          handleUpdatePackOrder(pack.id, newOrder)
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const newOrder = parseInt(e.target.value)
+                        if (isNaN(newOrder) || newOrder < 1 || newOrder > packs.length) {
+                          // Réinitialiser à la valeur actuelle si invalide
+                          e.target.value = (pack.display_order ?? index + 1).toString()
+                        }
+                      }}
+                      className="w-16 px-2 py-1 bg-dark-surface border border-dark-border rounded-lg text-white text-center text-sm focus:outline-none focus:border-accent-gold transition-colors"
+                      title={`Entrez un numéro entre 1 et ${packs.length}`}
+                    />
                   </div>
 
                   {/* Contenu du pack */}
