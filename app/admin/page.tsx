@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Pack, Testimonial, Prospect, BlogArticle } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
 import { motion } from 'framer-motion'
-import { Plus, Trash2, Edit, Upload, X, ChevronUp, ChevronDown, LogOut, Flame } from 'lucide-react'
+import { Plus, Trash2, Edit, Upload, X, ChevronUp, ChevronDown, LogOut, Flame, Download, FileText, FileSpreadsheet } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 export default function AdminPage() {
@@ -219,6 +219,119 @@ export default function AdminPage() {
       console.error('Error deleting admin user:', error)
       alert(error.message || 'Erreur lors de la suppression')
     }
+  }
+
+  const handleDeleteProspect = async (id: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce prospect ?')) return
+    
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.from('prospects').delete().eq('id', id)
+      if (error) throw error
+      setProspects(prospects.filter((p) => p.id !== id))
+      alert('Prospect supprimé avec succès!')
+    } catch (error) {
+      console.error('Error deleting prospect:', error)
+      alert('Erreur lors de la suppression')
+    }
+  }
+
+  const handleExportPDF = () => {
+    if (prospects.length === 0) {
+      alert('Aucun prospect à exporter')
+      return
+    }
+
+    // Créer le contenu HTML pour le PDF
+    let htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Liste des Prospects</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+            th { background-color: #f2f2f2; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f9f9f9; }
+          </style>
+        </head>
+        <body>
+          <h1>Liste des Prospects - France Abonnement IPTV</h1>
+          <p>Date d'export : ${new Date().toLocaleDateString('fr-FR')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Téléphone</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+    `
+
+    prospects.forEach((prospect) => {
+      htmlContent += `
+        <tr>
+          <td>${prospect.name || ''}</td>
+          <td>${prospect.email || ''}</td>
+          <td>${prospect.phone || ''}</td>
+          <td>${new Date(prospect.created_at).toLocaleDateString('fr-FR')}</td>
+        </tr>
+      `
+    })
+
+    htmlContent += `
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `
+
+    // Créer une nouvelle fenêtre et imprimer
+    const printWindow = window.open('', '_blank')
+    if (printWindow) {
+      printWindow.document.write(htmlContent)
+      printWindow.document.close()
+      printWindow.onload = () => {
+        printWindow.print()
+      }
+    }
+  }
+
+  const handleExportExcel = () => {
+    if (prospects.length === 0) {
+      alert('Aucun prospect à exporter')
+      return
+    }
+
+    // Créer le contenu CSV (compatible Excel)
+    const headers = ['Nom', 'Email', 'Téléphone', 'Date']
+    const csvRows = [
+      headers.join(','),
+      ...prospects.map((prospect) => {
+        return [
+          `"${(prospect.name || '').replace(/"/g, '""')}"`,
+          `"${(prospect.email || '').replace(/"/g, '""')}"`,
+          `"${(prospect.phone || '').replace(/"/g, '""')}"`,
+          `"${new Date(prospect.created_at).toLocaleDateString('fr-FR')}"`,
+        ].join(',')
+      }),
+    ]
+
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `prospects_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
   const handleDeletePack = async (id: string) => {
@@ -1151,7 +1264,27 @@ export default function AdminPage() {
         {/* Prospects Tab */}
         {activeTab === 'prospects' && (
           <div>
-            <h2 className="text-2xl font-bold text-white mb-6">Prospects</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">Prospects</h2>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleExportPDF}
+                  disabled={prospects.length === 0}
+                  className="px-4 py-2 bg-accent-blue/20 border border-accent-blue rounded-lg text-accent-blue hover:bg-accent-blue/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  Télécharger PDF
+                </button>
+                <button
+                  onClick={handleExportExcel}
+                  disabled={prospects.length === 0}
+                  className="px-4 py-2 bg-green-500/20 border border-green-500 rounded-lg text-green-400 hover:bg-green-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Télécharger Excel
+                </button>
+              </div>
+            </div>
             <div className="bg-dark-card border border-dark-border rounded-xl overflow-hidden">
               <table className="w-full">
                 <thead className="bg-dark-surface">
@@ -1160,6 +1293,7 @@ export default function AdminPage() {
                     <th className="px-6 py-4 text-left text-white font-semibold">Email</th>
                     <th className="px-6 py-4 text-left text-white font-semibold">Téléphone</th>
                     <th className="px-6 py-4 text-left text-white font-semibold">Date</th>
+                    <th className="px-6 py-4 text-left text-white font-semibold">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1173,6 +1307,15 @@ export default function AdminPage() {
                       <td className="px-6 py-4 text-white/80">{prospect.phone}</td>
                       <td className="px-6 py-4 text-white/60 text-sm">
                         {new Date(prospect.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleDeleteProspect(prospect.id)}
+                          className="px-4 py-2 bg-red-500/20 border border-red-500 rounded-lg text-red-400 hover:bg-red-500/30 transition-colors flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Supprimer
+                        </button>
                       </td>
                     </tr>
                   ))}
