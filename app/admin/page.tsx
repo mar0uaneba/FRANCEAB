@@ -267,10 +267,23 @@ export default function AdminPage() {
       if (update1.error) throw update1.error
       if (update2.error) throw update2.error
 
-      // Mettre à jour l'état local
-      const newPacks = [...packs]
-      ;[newPacks[currentIndex], newPacks[newIndex]] = [newPacks[newIndex], newPacks[currentIndex]]
-      setPacks(newPacks)
+      // Recharger les packs depuis la base pour s'assurer que l'ordre est bien sauvegardé
+      const { data: updatedPacks, error: fetchError } = await supabase
+        .from('packs')
+        .select('*')
+        .order('display_order', { ascending: true, nullsFirst: false })
+
+      if (fetchError) throw fetchError
+
+      if (updatedPacks) {
+        setPacks(updatedPacks)
+        alert('Ordre des packs sauvegardé avec succès!')
+      } else {
+        // Fallback : mettre à jour l'état local si le rechargement échoue
+        const newPacks = [...packs]
+        ;[newPacks[currentIndex], newPacks[newIndex]] = [newPacks[newIndex], newPacks[currentIndex]]
+        setPacks(newPacks)
+      }
     } catch (error) {
       console.error('Error moving pack:', error)
       alert('Erreur lors du déplacement du pack')
@@ -294,6 +307,11 @@ export default function AdminPage() {
 
     try {
       const supabase = createClient()
+      
+      // Préserver le display_order existant
+      const currentPack = packs.find((p) => p.id === editingPack.id)
+      const displayOrder = currentPack?.display_order ?? editingPack.display_order
+      
       const { error } = await supabase
         .from('packs')
         .update({
@@ -303,26 +321,41 @@ export default function AdminPage() {
           paypal_link: editPackData.paypal_link || null,
           features: editPackData.features,
           is_promo: editPackData.is_promo,
+          display_order: displayOrder, // Préserver l'ordre
         })
         .eq('id', editingPack.id)
 
       if (error) throw error
 
-      // Mettre à jour la liste
-      const updatedPacks = packs.map((p) =>
-        p.id === editingPack.id
-          ? {
-              ...p,
-              name: editPackData.name,
-              price: parseFloat(editPackData.price),
-              duration: parseInt(editPackData.duration),
-              paypal_link: editPackData.paypal_link || null,
-              features: editPackData.features,
-              is_promo: editPackData.is_promo,
-            }
-          : p
-      )
-      setPacks(updatedPacks)
+      // Recharger les packs depuis la base pour s'assurer que l'ordre est préservé
+      const { data: updatedPacks, error: fetchError } = await supabase
+        .from('packs')
+        .select('*')
+        .order('display_order', { ascending: true, nullsFirst: false })
+
+      if (fetchError) throw fetchError
+
+      if (updatedPacks) {
+        setPacks(updatedPacks)
+      } else {
+        // Fallback : mettre à jour la liste localement
+        const localUpdatedPacks = packs.map((p) =>
+          p.id === editingPack.id
+            ? {
+                ...p,
+                name: editPackData.name,
+                price: parseFloat(editPackData.price),
+                duration: parseInt(editPackData.duration),
+                paypal_link: editPackData.paypal_link || null,
+                features: editPackData.features,
+                is_promo: editPackData.is_promo,
+                display_order: displayOrder,
+              }
+            : p
+        )
+        setPacks(localUpdatedPacks)
+      }
+      
       setEditingPack(null)
       alert('Pack modifié avec succès!')
     } catch (error) {
